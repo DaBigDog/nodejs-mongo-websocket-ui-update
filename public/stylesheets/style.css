@@ -1,0 +1,10 @@
+/* Styles go here */
+
+
+tr.highlight td {
+    background-color: #FFFF99 !important;
+}
+
+tr.deleteRow td {
+    background-color: #FFCCCC !important;
+}

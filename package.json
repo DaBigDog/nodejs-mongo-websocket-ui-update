@@ -1,0 +1,10 @@
+{
+  "name": “UI-Update-Example”,
+  "version": "0.0.1",
+  "description": “Update UI with socket.io",
+  "dependencies": {
+    "express": "^4.13.3",
+    "mongoose": "^4.2.9",
+    "socket.io": "^1.3.7"
+  }
+}

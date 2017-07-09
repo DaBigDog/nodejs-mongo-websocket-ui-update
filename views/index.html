@@ -1,0 +1,255 @@
+<!doctype html>
+<html>
+  <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Socket.IO Product Update</title>
+    <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="stylesheets/style.css">
+    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+    <script src="https://code.angularjs.org/1.4.8/angular.min.js"></script>
+    <script src="https://code.angularjs.org/1.4.8/angular-animate.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+  </head>
+  <body>
+    <div ng-app="demo" ng-controller="Ctrl" class="container">
+    <div>
+          <button ng-click="addProduct()" class="btn btn-primary">Add New</button>
+    </div>
+    <div class="table-responsive">
+    <table class="table table-striped table-bordered">
+        <thead>
+            <th>Name</th>
+            <th>Quantity</th>
+	    <th>Vendor</th>
+	    <th>Note</th>
+            <th></th>
+        </thead>
+        <tbody>
+            <tr ng-repeat="product in model.products" ng-include="getTemplate(product)" data-id={{product._id}} repeat-done ng-Cloak>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+    <script type="text/ng-template" id="display">
+        <td>{{product.name}}</td>
+        <td>{{product.quantity}}</td>
+        <td>{{product.vendor}}</td>
+        <td>{{product.note}}</td>
+        <td>
+            <button ng-click="editProduct(product)" class="btn btn-primary">Edit</button>
+            <button ng-click="deleteProduct(product)" class="btn btn-danger">Delete</button>
+        </td>
+    </script>
+    <script type="text/ng-template" id="edit">
+        <td><input type="text" ng-model="model.selected.name" /></td>
+        <td><input type="text" ng-model="model.selected.quantity" /></td>
+	   <td><input type="text" ng-model="model.selected.vendor" /></td>
+        <td><input type="text" ng-model="model.selected.note" /></td>
+        <td>
+            <button ng-click="saveProduct($index)" class="btn btn-success">Save</button>
+            <button ng-click="reset($index)" class="btn btn-warning">Cancel</button>
+        </td>
+    </script>
+</div>
+
+
+    
+<script>
+    var demo = angular.module("demo", []);
+    
+    demo.directive('repeatDone', function($parse) {
+        return function(scope, element, attrs) {
+            scope.$emit('onRepeatLast', element, attrs);
+        };
+    });
+      
+    demo.service('socketService',['$rootScope', function($rootScope)
+    {
+        var socket = io.connect();
+        return {
+            on: function(eventName, callback )
+            {
+                socket.on(eventName, function()
+                {
+                    var args=arguments;
+                    $rootScope.$apply(function()
+                    {
+                        callback.apply(socket,args);
+                    });
+                });
+            },
+    
+            emit: function(eventName,data,callback)
+            {
+                socket.emit(eventName,data,function()
+                {
+                    var args=arguments;
+                    $rootScope.$apply(function()
+                    {
+                        if(callback)
+                        {
+                            callback.apply(socket,args);
+                        }
+                    });
+                });
+            }
+        }
+    }]);
+
+    demo.service('dataService', function($http) {
+    
+        this.getData = function() {
+            // $http() returns a $promise that we can add handlers with .then()
+            return $http({
+                method: 'GET',
+                url:  'http://localhost:3000/api/products'
+            });
+        }
+        
+        this.updateData = function(data) {
+            return $http({
+                method: 'PUT',
+                url:  'http://localhost:3000/api/products/' + data._id,
+                data: data
+            });
+        }
+        
+        this.saveData = function(data) {
+            return $http({
+                method: 'POST',
+                url:  'http://localhost:3000/api/products/',
+                data: data
+            });
+        }
+        
+        this.deleteData = function(data) {
+            return $http({
+                method: 'DELETE',
+                url:  'http://localhost:3000/api/products/' + data._id,
+            });
+        }
+    });
+
+
+demo.controller("Ctrl", function Ctrl($scope, dataService, socketService) {
+    $scope.model = { };
+    $scope.highlightId = "";
+    
+    dataService.getData().then(function(dataResponse) {
+        $scope.model.products = dataResponse.data;
+    });
+
+    // gets the template to ng-include for a table row / item
+    $scope.getTemplate = function (product) {
+        if (undefined !== $scope.model.selected && product._id === $scope.model.selected._id) return 'edit';
+        else return 'display';
+    };
+
+    $scope.editProduct = function (product) {
+        $scope.model.selected = angular.copy(product);
+    };
+    
+    $scope.addProduct = function () {
+        var newProduct = {
+            name: "",
+            quantity: 0,
+            vendor: "",
+            note: ""
+        };
+        
+        $scope.model.products.splice(0, 0, newProduct);
+        $scope.editProduct(newProduct);
+    };
+    
+    $scope.deleteProduct = function (product) {
+        dataService.deleteData(product).then(function(dataResponse) { });
+    };
+
+    $scope.saveProduct = function (idx) {
+        
+        if(undefined !== $scope.model.selected._id) {
+            $scope.model.products[idx] = angular.copy($scope.model.selected);
+            dataService.updateData($scope.model.products[idx]).then(function(dataResponse) {
+                $scope.reset(idx);
+            });
+        } else {
+            $scope.model.products[0] = angular.copy($scope.model.selected);
+            dataService.saveData($scope.model.products[0]).then(function(dataResponse) {
+                $scope.reset(idx);
+            });
+        }
+        
+        
+    };
+
+    $scope.reset = function (idx) {
+        var product = $scope.model.products[idx];
+        if (undefined === product._id) {
+            $scope.model.products.splice(idx, 1);
+        }
+        $scope.model.selected = {};
+    };
+    
+    $scope.deletedRow = function(id) {
+        
+        var $row = $("tr[data-id=" + id + "]");
+        $row.addClass("deleteRow");
+        
+        setTimeout(function(){
+            var index = $scope.model.products.map(function (item) {
+                return item._id;
+            }).indexOf(id);
+            $scope.model.products.splice(index, 1 );
+            $scope.$apply();
+        }, 2000);
+        
+    }
+    
+    $scope.highlightChangedRow = function(id, elem) {
+        if ($scope.highlightId !== "" & $scope.highlightId === id) {
+            elem.addClass("highlight");
+            setTimeout(function(){
+                elem.removeClass("highlight");
+            }, 2000);
+        }
+    }
+
+    $scope.$on('onRepeatLast', function(scope, element, attrs){
+          $scope.highlightChangedRow(attrs["id"], element);
+      });
+
+    socketService.on('productChange', function(msg)
+    {
+        $scope.highlightId = "";
+        switch (msg.type.toLowerCase())
+            {
+                case "put":
+                    $scope.highlightId = msg.object._id;
+                    angular.forEach($scope.model.products, function(value, key){
+                        if(value._id === msg.object._id) {
+                            $scope.model.products[key] = msg.object;
+                        }
+                    });
+                    break;
+                
+                case "post":
+                    $scope.highlightId = msg.object._id;
+                    $scope.model.products.splice(0, 0, msg.object);
+                    break;
+                
+                case "delete":
+                    $scope.deletedRow(msg.object._id);
+                    
+                    break;
+                
+                default:
+            }
+    });
+});
+
+
+
+    </script>
+  </body>
+</html>
+
