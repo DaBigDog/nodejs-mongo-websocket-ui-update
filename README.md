@@ -1,4 +1,4 @@
-# nodejs-mongo-websocket-ui-update
+# Nodejs, Mongo, Angularjs and Websockets to Update UI Data
 
 The app uses web sockets to update listeners data when a record is saved. This allows all users to have the latest version of the data.
 
@@ -10,7 +10,7 @@ First, install NPM packages:
 >npm start
 
 Second, start MongoDB
->mongod --dbpath ~/blah/blah/blah/path/to/your/db
+>mongod --dbpath ~/blah/blah/path/to/your/db
 
 Third, strart the nodejs app
 >node app.js
